@@ -1,0 +1,76 @@
+# test_simple.yaml
+openssh1:
+  metadata:
+    vendor: openssh
+    product: sshd
+    version: "2"
+    description: "Open SSH Generic events"
+  events:
+    templates:
+      - >-
+        <{{ pri }}>{{ ts }} {{ host }} sshd[16645]: Accepted password for op from 172.17.58.45 port 1673 ssh2
+    transports:
+      - plugin: network
+        host: "127.0.0.1"
+        port: "5514"
+        proto: tcp
+        wrapper: LF
+    fields:
+      - token: pri
+        placeholder:
+          type: jinja
+        valueType: random
+        generator:
+          class: syslog
+          field: pri
+      - token: ts
+        placeholder:
+          type: jinja
+        valueType: timestamp
+        generator:
+          class: strftime
+          format: "%b %d %H:%M:%S"
+          timezone: UTC
+      - token: host
+        placeholder:
+          type: jinja
+        generator:
+          class: host
+          field: short
+      - token: user
+        placeholder:
+          type: literal
+          value: op
+        generator:
+          class: user
+          field: short
+      - token: src_ip
+        placeholder:
+          type: literal
+          value: "172.17.58.45"
+        generator:
+          class: network
+          field: ipv4
+      - token: src_port
+        placeholder:
+          type: literal
+          value: "1673"
+        generator:
+          class: network
+          field: src_port
+    checks:
+      humio:
+        timestamp:
+          precision: s
+          delta: 1
+          field: ts
+        fields:
+          - field: "host"
+            value_from: host
+          - field: "app"
+            value: sshd
+          - field: "pid"
+            value: "16645"
+          - field: "msg"
+            template: >-
+              Accepted password for op from 172.17.58.45 port 1673 ssh2
