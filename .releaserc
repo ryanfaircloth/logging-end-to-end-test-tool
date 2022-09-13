@@ -28,13 +28,13 @@
         "replacements": [
           {
             "files": [
-              "logging-end-to-end-test-tool/__init__.py"
+              "pytest_logging_end_to_end_test_tool/__init__.py"
             ],
             "from": "__version__ ?= '.*'",
             "to": "__version__ = '${nextRelease.version}'",
             "results": [
               {
-                "file": "logging-end-to-end-test-tool/__init__.py",
+                "file": "pytest_logging_end_to_end_test_tool/__init__.py",
                 "hasChanged": true,
                 "numMatches": 1,
                 "numReplacements": 1
@@ -76,7 +76,7 @@
         "assets": [
           "NOTICE",
           "pyproject.toml",
-          "logging-end-to-end-test-tool/__init__.py"
+          "pytest_logging_end_to_end_test_tool/__init__.py"
         ],
         "message": "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}",
       },
