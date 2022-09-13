@@ -158,7 +158,7 @@ class YamlItem(pytest.Item):
         for raw in rawEvents:
             s.sendall(raw.encode())
             if transport["wrapper"] == "LF":
-                s.sendall("\n".encode())
+                s.sendall(b"\n")
         s.close()
 
         check = self.spec["check"]
