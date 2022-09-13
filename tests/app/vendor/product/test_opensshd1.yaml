@@ -65,7 +65,7 @@ openssh1:
         delta: 1
         field: ts
       fields:
-        - field: "host"
+        - field: "@host"
           value_from: host
           query: true
         - field: "app"

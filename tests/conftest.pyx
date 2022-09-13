@@ -173,8 +173,8 @@ class YamlItem(pytest.Item):
             checkargs['queryString'] ="*"
 
         mylogger.debug(checkargs)
-        url = "https://humio.hql.guru/api/v1/repositories/syslog/query"
-        authtoken = "scSDCr7ltk0v8dYvrHHGKtZ0~YzMuodZaFiwWYN4cyRmr0w814qO7KelqYCw6rn6yw2qi"
+        url = "https://humio.rfaircloth.com/api/v1/repositories/snag/query"
+        authtoken = "1xaZjT6YLr6Z7kNPl6Mopuya~jUUiN8K4L03KRh3xGFITj1H8GgYBq2v7kDZmAwqHi43w"
         headers = {
             'Accept': 'application/json',
             'Authorization': f'Bearer {authtoken}',

@@ -1,0 +1,94 @@
+# test_simple.yaml
+openssh1:
+  metadata:
+    vendor: cisco
+    product: asa
+    version: "unknown"
+    description: ""
+  data:
+    templates:
+      - >-
+        <{{ pri }}>{{ ts }} {{ host }} %ASA-4-106023: Deny udp src inside:192.168.9.20/38524 dst outside:192.168.10.106/514 by access-group "inside_access_in" [0x0, 0x0]
+    fields:
+      - token: pri
+        placeholder:
+          type: jinja
+        valueType: random
+        generator:
+          class: syslog
+          field: pri
+      - token: ts
+        placeholder:
+          type: jinja
+        valueType: timestamp
+        generator:
+          class: strftime
+          format: "%b %d %H:%M:%S"
+          timezone: UTC
+      - token: host
+        placeholder:
+          type: jinja
+        generator:
+          class: host
+          field: short
+      - token: user
+        placeholder:
+          type: literal
+          value: op
+        generator:
+          class: user
+          field: short
+      - token: src_ip
+        placeholder:
+          type: literal
+          value: "192.168.9.20"
+        generator:
+          class: network
+          field: ipv4
+      - token: src_port
+        placeholder:
+          type: literal
+          value: "38524"
+        generator:
+          class: network
+          field: src_port
+      - token: dest_ip
+        placeholder:
+          type: literal
+          value: "192.168.10.106"
+        generator:
+          class: network
+          field: ipv4
+  transports:
+    - plugin: network
+      host: "127.0.0.1"
+      port: "5514"
+      proto: tcp
+      wrapper: LF
+  checks:
+    - backend: humio
+      timestamp:
+        precision: s
+        delta: 1
+        field: ts
+      fields:
+        - field: "#vendor"
+          value: "cisco"
+        - field: "#product"
+          value: "asa"
+        - field: "@host"
+          value_from: host
+          query: true
+        - field: "identifier"
+          value: "ASA"
+        - field: "severity"
+          value: "4"
+        - field: "mnemonic"
+          value: "106023"
+        - field: "protocol"
+          value: "udp"
+        - field: "srcip"
+          value_from: "src_ip"
+        - field: "message"
+          template: >-
+            Deny udp src inside:192.168.9.20/38524 dst outside:192.168.10.106/514 by access-group "inside_access_in" [0x0, 0x0]

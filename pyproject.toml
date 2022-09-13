@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "logging-end-to-end-test-tool"
-version = "0.1.0"
+name = "pytest-logging-end-to-end-test-tool"
+version = "0.1.1"
 description = ""
 authors = ["Ryan Faircloth <ryan@dss-i.com>"]
 license = "Apache-2.0"
@@ -14,7 +14,11 @@ Faker = "^13.15.1"
 requests = "^2.28.1"
 
 [tool.poetry.dev-dependencies]
+black = {version = "^22.8.0", allow-prereleases = true}
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry>=1.0.2"]
+build-backend = "poetry.masonry.api"
+
+[tool.poetry.plugins]
+pytest11 = { plugin = "pytest_logging_end_to_end_test_tool.plugin"}
