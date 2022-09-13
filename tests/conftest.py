@@ -1,5 +1,6 @@
 # content of conftest.py
 from datetime import datetime, date, timezone
+from importlib.metadata import metadata
 import time
 import random
 from wsgiref import headers
@@ -23,32 +24,38 @@ def pytest_collect_file(parent, file_path):
     if file_path.suffix == ".yaml" and file_path.name.startswith("test"):
         return YamlFile.from_parent(parent, path=file_path)
 
-
 class YamlFile(pytest.File):
     def collect(self):
 
         raw = yaml.safe_load(self.path.open())
-        for name, spec in sorted(raw.items()):
-            yield YamlItem.from_parent(self, name=name, spec=spec)
+        for name, spec in sorted(raw.items()):            
+            for transport in spec['transports']:
+                for check in spec['checks']:
+                    testname = f"{name}/{transport['plugin']}/{check['backend']}"
+                    testinstance = {
+                            "metadata": spec['metadata'],
+                            "data": spec['data'],
+                            "transport": transport,
+                            "check": check
+                        }
+                    yield YamlItem.from_parent(self, name=testname, spec=testinstance)
 
 
 class YamlItem(pytest.Item):
     def __init__(self, *, spec, **kwargs):
         super().__init__(**kwargs)
         self.spec = spec
+        self.generatedFields = {}
+        self.generatedTimeStamps = {}
+        self.jenv = Environment()
 
-    def runtest(self):
-        # logging.debug(self.spec.items())
-        jenv = Environment()
-        
-        assert self.spec['metadata']['vendor'] is not None, "metadata.vendor is required" 
-        assert self.spec['metadata']['product'] is not None, "metadata.product is required" 
-        assert self.spec['metadata']['version'] is not None, "metadata.version is required" 
+        self.generateData()
 
+    def generateData(self):
 
-        jinjaArgs = {}
-        tsArgs = {}
-        for eventfield in self.spec['events']['fields']:
+        fields= self.spec['data']['fields']
+
+        for eventfield in fields:
             mylogger.debug(eventfield)
 
             eventFieldName = eventfield['token']
@@ -60,32 +67,32 @@ class YamlItem(pytest.Item):
                     dt = datetime.now(timezone.utc)
                 else: 
                     dt = datetime.now()
-                jinjaArgs[eventFieldName]=dt.strftime(eventfield['generator']['format'])
-                tsArgs[eventFieldName]=dt
+                self.generatedFields[eventFieldName]=dt.strftime(eventfield['generator']['format'])
+                self.generatedTimeStamps[eventFieldName]=dt
             elif generator == "host":
                 generatorField=eventfield['generator']['field']
                 if generatorField == "fqdn":
-                    jinjaArgs[eventFieldName]=fake.hostname()
+                    self.generatedFields[eventFieldName]=fake.hostname()
                 elif generatorField == "long":
-                    jinjaArgs[eventFieldName]=fake.hostname(2)
+                    self.generatedFields[eventFieldName]=fake.hostname(2)
                 else:
-                    jinjaArgs[eventFieldName]=fake.hostname(0)
+                    self.generatedFields[eventFieldName]=fake.hostname(0)
             elif generator == "user":
                 generatorField=eventfield['generator']['field']
                 if generatorField == "short":
-                    jinjaArgs[eventFieldName]=fake.user_name()
+                    self.generatedFields[eventFieldName]=fake.user_name()
                 elif generatorField == "email":
-                    jinjaArgs[eventFieldName]=fake.ascii_safe_email()
+                    self.generatedFields[eventFieldName]=fake.ascii_safe_email()
             elif generator == "network":
                 generatorField=eventfield['generator']['field']
                 if generatorField == "ipv4":
-                    jinjaArgs[eventFieldName]=fake.ipv4()
+                    self.generatedFields[eventFieldName]=fake.ipv4()
                 elif generatorField == "ipv6":
-                    jinjaArgs[eventFieldName]=fake.ipv6()
+                    self.generatedFields[eventFieldName]=fake.ipv6()
                 elif generatorField == "src_port":
-                    jinjaArgs[eventFieldName]=str(fake.port_number(is_dynamic=True))
+                    self.generatedFields[eventFieldName]=str(fake.port_number(is_dynamic=True))
                 else:
-                    jinjaArgs[eventFieldName]=fake.ipv4()
+                    self.generatedFields[eventFieldName]=fake.ipv4()
 
             elif generator == "syslog":
                 generatorField=eventfield['generator']['field']
@@ -93,43 +100,57 @@ class YamlItem(pytest.Item):
                 if generatorField == "pri":
                     rPRI = random.randint(2,100)
                     mylogger.debug(f"rPRI={rPRI}")
-                    jinjaArgs[eventFieldName]=f'{rPRI}'
+                    self.generatedFields[eventFieldName]=f'{rPRI}'
             else:
                 raise Exception(f"Unknown Generator={generator}")
 
-        mylogger.debug(f"-----tokens={jinjaArgs}")
-        mylogger.debug(f"-----tsArgs={tsArgs}")
+        mylogger.debug(f"-----generatedFields={self.generatedFields}")
+        mylogger.debug(f"-----generatedTimeStamps={self.generatedTimeStamps}")
+ 
+    def renderTemplate(self,template):
+        ctemplate = self.jenv.from_string(template)
+
+        rendered = ctemplate.render(self.generatedFields)
+        mylogger.debug(f"step1 rendered={rendered}")
+        for eventfield in self.spec['data']['fields']:
+            eventFieldName = eventfield['token']
+            if eventfield['placeholder']['type'] == "literal":
+                orig = eventfield['placeholder']['value']
+                new = self.generatedFields[eventFieldName]
+                mylogger.debug(f"replacing {orig} with {new}")
+                rendered=rendered.replace(orig,new)
+
+        mylogger.debug(f"step2 rendered={rendered}")
+
+        return rendered
+
+    def runtest(self):
+        # logging.debug(self.spec.items())
         
+        assert self.spec['metadata']['vendor'] is not None, "metadata.vendor is required" 
+        assert self.spec['metadata']['product'] is not None, "metadata.product is required" 
+        assert self.spec['metadata']['version'] is not None, "metadata.version is required" 
+
         rawEvents = []
-        for jtemplate in self.spec['events']['templates']:
-            ctemplate = jenv.from_string(jtemplate)
-
-            rendered = ctemplate.render(jinjaArgs)
-            mylogger.debug(f"step1 rendered={rendered}")
-            for eventfield in self.spec['events']['fields']:
-                eventFieldName = eventfield['token']
-                if eventfield['placeholder']['type'] == "literal":
-                    orig = eventfield['placeholder']['value']
-                    new = jinjaArgs[eventFieldName]
-                    mylogger.debug(f"replacing {orig} with {new}")
-                    rendered=rendered.replace(orig,new)
-
-            mylogger.debug(f"step2 rendered={rendered}")
+        for jtemplate in self.spec['data']['templates']:
+            rendered = self.renderTemplate(jtemplate)
             rawEvents.append(rendered)
 
-        for transport in self.spec['events']['transports']:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((transport['host'], int(transport['port'])))
-            for raw in rawEvents:
-                s.sendall(raw.encode())
-                if transport['wrapper'] == "LF":
-                    s.sendall('\n'.encode())
-        check = self.spec['events']['checks']['humio']
+        transport =self.spec['transport']
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((transport['host'], int(transport['port'])))
+        for raw in rawEvents:
+            s.sendall(raw.encode())
+            if transport['wrapper'] == "LF":
+                s.sendall('\n'.encode())
+        s.close()
+
+        check = self.spec['check']
         mylogger.debug(check)
         checktsfield = check['timestamp']['field']
         checktsdelta = check['timestamp']['delta']
         checkargs={}
-        workingts= tsArgs[checktsfield].timestamp()
+        workingts= self.generatedTimeStamps[checktsfield].timestamp()
         startts = workingts - 1
         endts = workingts + 1
         mylogger.debug(f"ts={workingts}")
@@ -137,7 +158,19 @@ class YamlItem(pytest.Item):
         checkargs['end'] =int(endts *1000 )
         # checkargs['start'] = 1659706485000 - 1
         # checkargs['end'] = 1659706485000 + 1
-        checkargs['queryString'] ="*"
+        queryFields = []
+        for checkfield in check['fields']:
+            cfield = checkfield['field']
+            if "query" in checkfield and checkfield['query'] == True:
+                if "value_from" in checkfield:
+                    queryFields.append(f"{cfield}=\"{self.generatedFields[checkfield['value_from']]}\"")
+                elif "value" in checkfield:
+                    queryFields.append(f"{cfield}=\"{checkfield['value']}\"")
+
+        if len(queryFields)>0:
+            checkargs['queryString'] = " ".join(queryFields)
+        else:
+            checkargs['queryString'] ="*"
 
         mylogger.debug(checkargs)
         url = "https://humio.hql.guru/api/v1/repositories/syslog/query"
@@ -160,46 +193,23 @@ class YamlItem(pytest.Item):
 
         firstqueryresult = queryresult[0]
         mylogger.debug(firstqueryresult)
+
+        assert float(firstqueryresult['@ingesttimestamp']) >= float(firstqueryresult['@timestamp']), "Timestamp is newer than ingest"
+
+        assert float(firstqueryresult['@ingesttimestamp']) - float(firstqueryresult['@timestamp']) < 10000, "Lag greater than 10s"
+
         for checkfield in check['fields']:
             cfield = checkfield['field']
             assert cfield in firstqueryresult, f"Field {cfield} not in result"
 
             if "value_from" in checkfield:
-                assert firstqueryresult[cfield] == jinjaArgs[cfield]
+                assert firstqueryresult[cfield] == self.generatedFields[checkfield['value_from']]
             elif "value" in checkfield:
                 assert firstqueryresult[cfield] == checkfield['value']
             elif "template" in checkfield:
-                ftemplate = jenv.from_string(checkfield['template'])
-
-                rendered = ftemplate.render(jinjaArgs)
-                for eventfield in self.spec['events']['fields']:
-                    eventFieldName = eventfield['token']
-                    if eventfield['placeholder']['type'] == "literal":
-                        orig = eventfield['placeholder']['value']
-                        new = jinjaArgs[eventFieldName]
-                        mylogger.debug(f"replacing {orig} with {new}")
-                        rendered=rendered.replace(orig,new)
-                mylogger.debug(f"field rendered={rendered}")
+                rendered = self.renderTemplate(checkfield['template'])
 
                 assert firstqueryresult[cfield] == rendered
-
-        # assert self.spec.items()['metadata']['fail'] is not None, "metadata.fail is required" 
-
-        # for name, value in sorted(self.spec.items()):
-        #     # Some custom test execution (dumb example follows).
-        #     if name != value:
-        #         raise YamlException(self, name, value)
-
-    # def repr_failure(self, excinfo):
-    #     """Called when self.runtest() raises an exception."""
-    #     if isinstance(excinfo.value, YamlException):
-    #         return "\n".join(
-    #             [
-    #                 "usecase execution failed",
-    #                 "   spec failed: {1!r}: {2!r}".format(*excinfo.value.args),
-    #                 "   no further details known at this point.",
-    #             ]
-    #         )
 
     def reportinfo(self):
         return self.path, 0, f"usecase: {self.name}"

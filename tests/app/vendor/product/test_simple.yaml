@@ -5,16 +5,10 @@ openssh1:
     product: sshd
     version: "2"
     description: "Open SSH Generic events"
-  events:
+  data:
     templates:
       - >-
         <{{ pri }}>{{ ts }} {{ host }} sshd[16645]: Accepted password for op from 172.17.58.45 port 1673 ssh2
-    transports:
-      - plugin: network
-        host: "127.0.0.1"
-        port: "5514"
-        proto: tcp
-        wrapper: LF
     fields:
       - token: pri
         placeholder:
@@ -58,19 +52,28 @@ openssh1:
         generator:
           class: network
           field: src_port
-    checks:
-      humio:
-        timestamp:
-          precision: s
-          delta: 1
-          field: ts
-        fields:
-          - field: "host"
-            value_from: host
-          - field: "app"
-            value: sshd
-          - field: "pid"
-            value: "16645"
-          - field: "msg"
-            template: >-
-              Accepted password for op from 172.17.58.45 port 1673 ssh2
+  transports:
+    - plugin: network
+      host: "127.0.0.1"
+      port: "5514"
+      proto: tcp
+      wrapper: LF
+  checks:
+    - backend: humio
+      timestamp:
+        precision: s
+        delta: 1
+        field: ts
+      fields:
+        - field: "host"
+          value_from: host
+          query: true
+        - field: "app"
+          value: sshd
+          query: true
+        - field: "pid"
+          value: "16645"
+          query: true
+        - field: "msg"
+          template: >-
+            Accepted password for op from 172.17.58.45 port 1673 ssh2
