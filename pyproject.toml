@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pytest-logging-end-to-end-test-tool"
-version = "0.1.1"
+version = "1.0.0"
 description = ""
 authors = ["Ryan Faircloth <ryan@dss-i.com>"]
 license = "Apache-2.0"
