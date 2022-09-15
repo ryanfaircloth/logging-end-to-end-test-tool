@@ -21,7 +21,7 @@ jobs:
       - name: Install actionlint
         run: |
           bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/v1.6.3/scripts/download-actionlint.bash)
-      - uses: pre-commit/action@v2.0.3
+      - uses: pre-commit/action@v3.0.0
 
   build:
     name: build
@@ -40,11 +40,11 @@ jobs:
         run: |
           poetry install
           poetry build
-      - uses: actions/upload-artifact@v2.2.4
+      - uses: actions/upload-artifact@v2.3.1
         with:
           name: dist
           path: dist
-      - uses: actions/upload-artifact@v2.2.4
+      - uses: actions/upload-artifact@v2.3.1
         with:
           name: output
           path: output
@@ -75,7 +75,7 @@ jobs:
         with:
           node-version: "14"          
       - name: Semantic Release
-        uses: cycjimmy/semantic-release-action@v2.6.0
+        uses: cycjimmy/semantic-release-action@v3.1.1
         with:
           semantic_version: 17
           extra_plugins: |
