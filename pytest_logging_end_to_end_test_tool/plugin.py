@@ -52,8 +52,6 @@ class YamlItem(pytest.Item):
         self.generatedTimeStamps = {}
         self.jenv = Environment()
 
-        self.generateData()
-
     def generateData(self):
 
         fields = self.spec["data"]["fields"]
@@ -135,6 +133,8 @@ class YamlItem(pytest.Item):
         return rendered
 
     def runtest(self):
+        self.generateData()
+
         # logging.debug(self.spec.items())
 
         assert (
