@@ -201,7 +201,7 @@ class YamlItem(pytest.Item):
             "Content-Type": "application/json",
         }
         time.sleep(1)
-        max_calls = 10
+        max_calls = 60
         for _ in range(max_calls):
 
             result = requests.post(url, json=checkargs, headers=headers)
