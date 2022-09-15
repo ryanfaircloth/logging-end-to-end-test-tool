@@ -200,14 +200,22 @@ class YamlItem(pytest.Item):
             "Authorization": f"Bearer {authtoken}",
             "Content-Type": "application/json",
         }
-        time.sleep(2)
-        result = requests.post(url, json=checkargs, headers=headers)
+        time.sleep(1)
+        max_calls = 10
+        for _ in range(max_calls):
 
-        assert result.status_code == 200
+            result = requests.post(url, json=checkargs, headers=headers)
 
-        queryresult = result.json()
+            assert result.status_code == 200
 
-        mylogger.debug(queryresult)
+            queryresult = result.json()
+
+            mylogger.debug(queryresult)
+
+            if len(queryresult) == 0:
+                time.sleep(1)
+            else:
+                break
 
         assert 1 == len(queryresult)
 
