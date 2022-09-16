@@ -175,15 +175,15 @@ class YamlItem(pytest.Item):
         # checkargs['start'] = 1659706485000 - 1
         # checkargs['end'] = 1659706485000 + 1
         queryFields = []
-        for checkfield in check["fields"]:
+        for checkfield in check["fields"]:            
             cfield = checkfield["field"]
             if "query" in checkfield and checkfield["query"] == True:
                 if "value_from" in checkfield:
                     queryFields.append(
-                        f"{cfield}=\"{self.generatedFields[checkfield['value_from']]}\""
+                        f"\"{cfield}\"=\"{self.generatedFields[checkfield['value_from']]}\""
                     )
                 elif "value" in checkfield:
-                    queryFields.append(f"{cfield}=\"{checkfield['value']}\"")
+                    queryFields.append(f"\"{cfield}\"=\"{checkfield['value']}\"")
 
         if len(queryFields) > 0:
             checkargs["queryString"] = " ".join(queryFields)
