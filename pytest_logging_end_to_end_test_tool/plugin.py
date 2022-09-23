@@ -13,6 +13,7 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 from faker import Faker
 import socket
 import requests
+import os
 
 Faker.seed(random.randint(0, 65000))
 fake = Faker()
@@ -175,7 +176,7 @@ class YamlItem(pytest.Item):
         # checkargs['start'] = 1659706485000 - 1
         # checkargs['end'] = 1659706485000 + 1
         queryFields = []
-        for checkfield in check["fields"]:            
+        for checkfield in check["fields"]:
             cfield = checkfield["field"]
             if "query" in checkfield and checkfield["query"] == True:
                 if "value_from" in checkfield:
@@ -191,10 +192,8 @@ class YamlItem(pytest.Item):
             checkargs["queryString"] = "*"
 
         mylogger.debug(checkargs)
-        url = "https://humio.rfaircloth.com/api/v1/repositories/snag/query"
-        authtoken = (
-            "1xaZjT6YLr6Z7kNPl6Mopuya~jUUiN8K4L03KRh3xGFITj1H8GgYBq2v7kDZmAwqHi43w"
-        )
+        url = os.environ.get("LE2E_HUMIO_URI")
+        authtoken = os.environ.get("LE2E_HUMIO_TOKEN")
         headers = {
             "Accept": "application/json",
             "Authorization": f"Bearer {authtoken}",
@@ -221,10 +220,11 @@ class YamlItem(pytest.Item):
 
         firstqueryresult = queryresult[0]
         mylogger.debug(firstqueryresult)
-
-        assert float(firstqueryresult["@ingesttimestamp"]) >= float(
+        id = float(firstqueryresult["@ingesttimestamp"]) - float(
             firstqueryresult["@timestamp"]
-        ), "Timestamp is newer than ingest"
+        )
+        # when the TS of the event does not have MS precision python may round the MS up to the next second so we allow up to 1s of drift
+        assert id <= 1000, f"Timestamp is newer than ingest by {id}"
 
         assert (
             float(firstqueryresult["@ingesttimestamp"])
